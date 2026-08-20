@@ -16,3 +16,7 @@ class VacationAllocation(Base):
     total_days = Column(Integer, nullable=False)
 
     employee = relationship("Employee", back_populates="vacation_allocations")
+
+    @property
+    def employee_email(self) -> str:
+        return self.employee.email
