@@ -10,14 +10,16 @@ from app.schemas.common import Page
 from app.schemas.employee import EmployeeOut
 from app.schemas.used_vacation_record import UsedVacationRecordOut
 from app.schemas.vacation_allocation import VacationAllocationOut
-from app.services.employee_import import import_employees_from_csv
+from app.services.employee_import import import_employees_from_file
 from app.services.employee_query import list_employees
-from app.services.used_vacation_record_import import import_used_vacation_records_from_csv
+from app.services.used_vacation_record_import import import_used_vacation_records_from_file
 from app.services.used_vacation_record_query import list_used_vacation_records
-from app.services.vacation_allocation_import import import_vacation_allocations_from_csv
+from app.services.vacation_allocation_import import import_vacation_allocations_from_file
 from app.services.vacation_allocation_query import list_vacation_allocations
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+
+ALLOWED_IMPORT_EXTENSIONS = (".csv", ".xlsx", ".xls")
 
 
 @router.post("/employees/import")
@@ -26,12 +28,14 @@ async def import_employees(
     db: Session = Depends(get_db),
     _admin: Employee = Depends(get_current_admin),
 ):
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV files are supported")
+    if not file.filename.lower().endswith(ALLOWED_IMPORT_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV or Excel files are supported"
+        )
 
     content = await file.read()
     try:
-        result = import_employees_from_csv(content, db)
+        result = import_employees_from_file(content, file.filename, db)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -48,12 +52,14 @@ async def import_vacation_allocations(
     db: Session = Depends(get_db),
     _admin: Employee = Depends(get_current_admin),
 ):
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV files are supported")
+    if not file.filename.lower().endswith(ALLOWED_IMPORT_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV or Excel files are supported"
+        )
 
     content = await file.read()
     try:
-        result = import_vacation_allocations_from_csv(content, db)
+        result = import_vacation_allocations_from_file(content, file.filename, db)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
@@ -75,12 +81,14 @@ async def import_used_vacation_records(
     db: Session = Depends(get_db),
     _admin: Employee = Depends(get_current_admin),
 ):
-    if not file.filename.lower().endswith(".csv"):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV files are supported")
+    if not file.filename.lower().endswith(ALLOWED_IMPORT_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only CSV or Excel files are supported"
+        )
 
     content = await file.read()
     try:
-        result = import_used_vacation_records_from_csv(content, db)
+        result = import_used_vacation_records_from_file(content, file.filename, db)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 

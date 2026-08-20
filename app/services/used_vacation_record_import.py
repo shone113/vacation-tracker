@@ -1,4 +1,3 @@
-import io
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.employee import Employee
 from app.models.used_vacation_record import UsedVacationRecord
 from app.services.date_ranges import periods_overlap
+from app.services.file_parsing import load_raw_grid
 
 EXPECTED_COLUMNS = ["Employee", "Vacation start date", "Vacation end date"]
 
@@ -183,20 +183,18 @@ def _validate_overlaps(
     return valid, errors
 
 
-def import_used_vacation_records_from_csv(content: bytes, db: Session) -> UsedVacationRecordImportResult:
-    df = pd.read_csv(io.BytesIO(content), dtype=str, encoding="utf-8-sig")
+def import_used_vacation_records_from_file(
+    content: bytes, filename: str, db: Session
+) -> UsedVacationRecordImportResult:
+    grid = load_raw_grid(content, filename)
 
-    missing_columns = [c for c in EXPECTED_COLUMNS if c not in df.columns]
-    if missing_columns:
-        raise ValueError(f"Missing expected columns in CSV: {missing_columns}")
+    header_row = [str(c).strip() if pd.notna(c) else "" for c in grid.iloc[0].tolist()]
+    if header_row[: len(EXPECTED_COLUMNS)] != EXPECTED_COLUMNS:
+        raise ValueError(f"Missing expected columns in file: {EXPECTED_COLUMNS}")
 
-    df = df.rename(
-        columns={
-            "Employee": "email",
-            "Vacation start date": "start_date_raw",
-            "Vacation end date": "end_date_raw",
-        }
-    )
+    df = grid.iloc[1:, : len(EXPECTED_COLUMNS)].copy()
+    df.columns = ["email", "start_date_raw", "end_date_raw"]
+    df = df.dropna(how="all").reset_index(drop=True)
 
     total_records = len(df)
 

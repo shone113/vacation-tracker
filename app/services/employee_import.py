@@ -1,12 +1,10 @@
-import csv
-import io
 from dataclasses import dataclass
 
-import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.models.employee import Employee, EmployeeRole
+from app.services.file_parsing import find_header_row, load_raw_grid
 
 EXPECTED_HEADER = ["Employee Email", "Employee Password"]
 
@@ -18,21 +16,15 @@ class EmployeeImportResult:
     skipped_existing: int
 
 
-def _find_header_row_index(text: str) -> int:
-    for i, row in enumerate(csv.reader(io.StringIO(text))):
-        if [cell.strip() for cell in row] == EXPECTED_HEADER:
-            return i
-    raise ValueError(f"Could not find header row {EXPECTED_HEADER} in CSV")
+def import_employees_from_file(content: bytes, filename: str, db: Session) -> EmployeeImportResult:
+    grid = load_raw_grid(content, filename)
+    header_index = find_header_row(grid, EXPECTED_HEADER)
+    if header_index is None:
+        raise ValueError(f"Could not find header row {EXPECTED_HEADER} in file")
 
-
-def import_employees_from_csv(content: bytes, db: Session) -> EmployeeImportResult:
-    text = content.decode("utf-8-sig")
-    header_index = _find_header_row_index(text)
-
-    lines = text.splitlines()
-    csv_from_header = "\n".join(lines[header_index:])
-    df = pd.read_csv(io.StringIO(csv_from_header), dtype=str)
-    df = df.rename(columns={"Employee Email": "email", "Employee Password": "password"})
+    df = grid.iloc[header_index + 1 :, :2].copy()
+    df.columns = ["email", "password"]
+    df = df.dropna(how="all").reset_index(drop=True)
 
     df["email"] = df["email"].str.strip()
     df["password"] = df["password"].str.strip()

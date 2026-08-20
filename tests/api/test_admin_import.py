@@ -1,9 +1,13 @@
+import io
+
+import pandas as pd
+
 from tests.conftest import auth_headers
 
 
-def _upload(client, admin, path, content):
+def _upload(client, admin, path, content, filename="data.csv"):
     return client.post(
-        path, headers=auth_headers(admin.email, "Test1234!"), files={"file": ("data.csv", content, "text/csv")}
+        path, headers=auth_headers(admin.email, "Test1234!"), files={"file": (filename, content, "text/csv")}
     )
 
 
@@ -23,3 +27,13 @@ def test_used_vacation_records_import_success(client, admin, make_employee):
     response = _upload(client, admin, "/admin/used-vacation-records/import", content)
     assert response.status_code == 200
     assert response.json()["created"] == 1
+
+
+def test_employees_import_accepts_excel_file(client, admin):
+    buf = io.BytesIO()
+    pd.DataFrame([["user1@test.local", "Abc123!"]], columns=["Employee Email", "Employee Password"]).to_excel(
+        buf, index=False, engine="openpyxl"
+    )
+    response = _upload(client, admin, "/admin/employees/import", buf.getvalue(), filename="employees.xlsx")
+    assert response.status_code == 200
+    assert response.json()["imported"] == 1

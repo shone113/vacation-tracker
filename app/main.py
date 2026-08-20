@@ -13,8 +13,3 @@ app.include_router(employee_router)
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
-@app.get("/db-check")
-def db_check(db: Session = Depends(get_db)):
-    db.execute(text("SELECT 1"))
-    return {"database": "connected"}

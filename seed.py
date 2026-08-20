@@ -1,26 +1,26 @@
 from app.db.database import SessionLocal
 from app.core.security import hash_password
-from app.models import Employee
+from app.models import Employee, EmployeeRole
 
 db = SessionLocal()
 
-admin = Employee(
-    email="admin@example.com",
-    hashed_password=hash_password("admin123"),
-    role="admin",
-    # dodaj i ostala obavezna polja tvog modela, npr. name="Admin"
-)
+def create_if_not_exists(email, password, role):
+    existing = db.query(Employee).filter_by(email=email).first()
+    if existing:
+        print(f"{email} already exists, skipping.")
+        return
+    emp = Employee(
+        email=email,
+        hashed_password=hash_password(password),
+        role=role,
+    )
+    db.add(emp)
+    print(f"{email} created.")
 
-employee = Employee(
-    email="employee@example.com",
-    hashed_password=hash_password("employee123"),
-    role="employee",
-    # dodaj i ostala obavezna polja tvog modela, npr. name="Test Employee"
-)
+create_if_not_exists("admin@example.com", "JakaSifra123", EmployeeRole.admin)
+create_if_not_exists("employee@example.com", "employee123", EmployeeRole.employee)
 
-db.add(admin)
-db.add(employee)
 db.commit()
 db.close()
 
-print("Admin i employee nalozi kreirani.")
+print("Seed skripta zavrsena.")

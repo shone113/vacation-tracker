@@ -1,5 +1,3 @@
-import csv
-import io
 from dataclasses import dataclass, field
 
 import pandas as pd
@@ -7,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.employee import Employee
 from app.models.vacation_allocation import VacationAllocation
+from app.services.file_parsing import load_raw_grid
 
 EXPECTED_HEADER = ["Employee", "Total vacation days"]
 
@@ -34,26 +33,26 @@ class VacationAllocationImportResult:
     errors: list[RowError] = field(default_factory=list)
 
 
-def _extract_year_and_header_index(text: str) -> tuple[int, int]:
+def _extract_year_and_header_index(grid: pd.DataFrame) -> tuple[int, int]:
     year = None
     header_index = None
 
-    for i, row in enumerate(csv.reader(io.StringIO(text))):
-        cells = [c.strip() for c in row]
+    for i, row in grid.iterrows():
+        cells = [str(c).strip() if pd.notna(c) else "" for c in row.tolist()]
         if year is None and len(cells) >= 2 and cells[0].lower() == "vacation year":
             try:
                 year = int(cells[1])
             except ValueError:
                 raise ValueError(f"Invalid year value in 'Vacation year' row: {cells[1]!r}")
             continue
-        if cells == EXPECTED_HEADER:
+        if cells[: len(EXPECTED_HEADER)] == EXPECTED_HEADER:
             header_index = i
             break
 
     if year is None:
-        raise ValueError("Could not find 'Vacation year' row in CSV")
+        raise ValueError("Could not find 'Vacation year' row in file")
     if header_index is None:
-        raise ValueError(f"Could not find header row {EXPECTED_HEADER} in CSV")
+        raise ValueError(f"Could not find header row {EXPECTED_HEADER} in file")
 
     return year, header_index
 
@@ -166,14 +165,15 @@ def _insert_or_update(
     return created, updated
 
 
-def import_vacation_allocations_from_csv(content: bytes, db: Session) -> VacationAllocationImportResult:
-    text = content.decode("utf-8-sig")
-    year, header_index = _extract_year_and_header_index(text)
+def import_vacation_allocations_from_file(
+    content: bytes, filename: str, db: Session
+) -> VacationAllocationImportResult:
+    grid = load_raw_grid(content, filename)
+    year, header_index = _extract_year_and_header_index(grid)
 
-    lines = text.splitlines()
-    csv_from_header = "\n".join(lines[header_index:])
-    df = pd.read_csv(io.StringIO(csv_from_header), dtype=str)
-    df = df.rename(columns={"Employee": "email", "Total vacation days": "total_days_raw"})
+    df = grid.iloc[header_index + 1 :, :2].copy()
+    df.columns = ["email", "total_days_raw"]
+    df = df.dropna(how="all").reset_index(drop=True)
 
     total_records = len(df)
 
