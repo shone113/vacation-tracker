@@ -31,8 +31,8 @@ Alembic migracije pre starta. Aplikacija je dostupna na `http://localhost:8000`.
 
 Zaustavljanje:
 ```bash
-docker compose down      # čuva podatke
-docker compose down -v   # briše i podatke (volume)
+docker compose down     
+docker compose down -v   
 ```
 
 ### Opcija 2 — Lokalno (bez Dockera)
@@ -40,14 +40,14 @@ docker compose down -v   # briše i podatke (volume)
 Preduslovi: Python 3.12, pokrenut PostgreSQL.
 
 ```bash
-createdb vacation-tracker         # ili: psql -c "CREATE DATABASE \"vacation-tracker\";"
+createdb vacation-tracker         
                                    # (Alembic pravi tabele, ne i samu bazu)
 
 python -m venv venv
-source venv/Scripts/activate      # Windows (git-bash); na Linux/macOS: source venv/bin/activate
+source venv/Scripts/activate      
 pip install -r requirements.txt
 
-cp .env.example .env              # upiši svoj DATABASE_URL
+cp .env.example .env              # upisati svoj DATABASE_URL
 alembic upgrade head              # kreira tabele
 
 uvicorn app.main:app --reload
