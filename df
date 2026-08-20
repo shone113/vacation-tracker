@@ -1,0 +1,52 @@
+warning: in the working copy of 'app/api/routes/employee.py', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/app/api/routes/employee.py b/app/api/routes/employee.py[m
+[1mindex 01686df..428c3f7 100644[m
+[1m--- a/app/api/routes/employee.py[m
+[1m+++ b/app/api/routes/employee.py[m
+[36m@@ -1,11 +1,16 @@[m
+[31m-from fastapi import APIRouter, Depends, Query[m
+[32m+[m[32mfrom datetime import date[m
+[32m+[m
+[32m+[m[32mfrom fastapi import APIRouter, Depends, HTTPException, Query, status[m
+ from sqlalchemy.orm import Session[m
+ [m
+ from app.api.deps import get_current_employee[m
+ from app.db.database import get_db[m
+ from app.models.employee import Employee[m
+[32m+[m[32mfrom app.schemas.common import Page[m
+ from app.schemas.employee import EmployeeOut[m
+[32m+[m[32mfrom app.schemas.used_vacation_record import UsedVacationRecordOut[m
+ from app.schemas.vacation_summary import VacationSummaryOut[m
+[32m+[m[32mfrom app.services.used_vacation_record_query import list_used_vacation_records[m
+ from app.services.vacation_summary import get_vacation_summary, get_years_with_data[m
+ [m
+ router = APIRouter(prefix="/me", tags=["employee"])[m
+[36m@@ -26,3 +31,28 @@[m [mdef get_my_vacation_summary([m
+ ):[m
+     years = [year] if year is not None else get_years_with_data(db, employee_id=current_employee.id)[m
+     return [get_vacation_summary(db, employee_id=current_employee.id, year=y) for y in years][m
+[32m+[m
+[32m+[m
+[32m+[m[32m@router.get("/used-vacation-records", response_model=Page[UsedVacationRecordOut])[m
+[32m+[m[32mdef get_my_used_vacation_records([m
+[32m+[m[32m    from_date: date | None = None,[m
+[32m+[m[32m    to_date: date | None = None,[m
+[32m+[m[32m    page: int = Query(1, ge=1),[m
+[32m+[m[32m    page_size: int = Query(50, ge=1, le=200),[m
+[32m+[m[32m    db: Session = Depends(get_db),[m
+[32m+[m[32m    current_employee: Employee = Depends(get_current_employee),[m
+[32m+[m[32m):[m
+[32m+[m[32m    if from_date and to_date and from_date > to_date:[m
+[32m+[m[32m        raise HTTPException([m
+[32m+[m[32m            status_code=status.HTTP_400_BAD_REQUEST, detail="from_date must be before or equal to to_date"[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m    items, total = list_used_vacation_records([m
+[32m+[m[32m        db,[m
+[32m+[m[32m        employee_id=current_employee.id,[m
+[32m+[m[32m        from_date=from_date,[m
+[32m+[m[32m        to_date=to_date,[m
+[32m+[m[32m        page=page,[m
+[32m+[m[32m        page_size=page_size,[m
+[32m+[m[32m    )[m
+[32m+[m[32m    return Page(items=items, total=total, page=page, page_size=page_size)[m
