@@ -19,7 +19,6 @@ class Employee(Base):
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
     role = Column(Enum(EmployeeRole), nullable=False, default=EmployeeRole.employee)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
     vacation_allocations = relationship(
         "VacationAllocation", back_populates="employee", cascade="all, delete-orphan"
