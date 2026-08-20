@@ -8,8 +8,14 @@ from app.db.database import get_db
 from app.models.employee import Employee
 from app.schemas.common import Page
 from app.schemas.employee import EmployeeOut
-from app.schemas.used_vacation_record import UsedVacationRecordOut
+from app.schemas.used_vacation_record import UsedVacationRecordCreate, UsedVacationRecordOut
 from app.schemas.vacation_summary import VacationSummaryOut
+from app.services.used_vacation_record_create import (
+    InsufficientAllowanceError,
+    NoWorkingDaysError,
+    OverlapError,
+    create_used_vacation_record,
+)
 from app.services.used_vacation_record_query import list_used_vacation_records
 from app.services.vacation_summary import get_vacation_summary, get_years_with_data
 
@@ -56,3 +62,24 @@ def get_my_used_vacation_records(
         page_size=page_size,
     )
     return Page(items=items, total=total, page=page, page_size=page_size)
+
+
+@router.post(
+    "/used-vacation-records", response_model=UsedVacationRecordOut, status_code=status.HTTP_201_CREATED
+)
+def add_my_used_vacation_record(
+    payload: UsedVacationRecordCreate,
+    db: Session = Depends(get_db),
+    current_employee: Employee = Depends(get_current_employee),
+):
+    try:
+        return create_used_vacation_record(
+            db,
+            employee_id=current_employee.id,
+            start_date=payload.start_date,
+            end_date=payload.end_date,
+        )
+    except OverlapError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc))
+    except (NoWorkingDaysError, InsufficientAllowanceError) as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

@@ -1,10 +1,11 @@
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 
 from sqlalchemy.orm import Session
 
 from app.models.used_vacation_record import UsedVacationRecord
 from app.models.vacation_allocation import VacationAllocation
+from app.services.date_ranges import weekdays_in_year
 
 
 @dataclass
@@ -13,23 +14,6 @@ class VacationSummary:
     total_days: int
     used_days: int
     available_days: int
-
-
-def _weekdays_in_range(start: date, end: date) -> int:
-    days = (end - start).days + 1
-    return sum(1 for i in range(days) if (start + timedelta(days=i)).weekday() < 5)
-
-
-def _weekdays_used_in_year(start_date: date, end_date: date, year: int) -> int:
-    year_start = date(year, 1, 1)
-    year_end = date(year, 12, 31)
-
-    intersection_start = max(start_date, year_start)
-    intersection_end = min(end_date, year_end)
-    if intersection_start > intersection_end:
-        return 0
-
-    return _weekdays_in_range(intersection_start, intersection_end)
 
 
 def get_years_with_data(db: Session, employee_id: int) -> list[int]:
@@ -72,7 +56,7 @@ def get_vacation_summary(db: Session, employee_id: int, year: int) -> VacationSu
         .all()
     )
 
-    used_days = sum(_weekdays_used_in_year(r.start_date, r.end_date, year) for r in records)
+    used_days = sum(weekdays_in_year(r.start_date, r.end_date, year) for r in records)
 
     return VacationSummary(
         year=year,

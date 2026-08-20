@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.employee import Employee
 from app.models.used_vacation_record import UsedVacationRecord
+from app.services.date_ranges import periods_overlap
 
 EXPECTED_COLUMNS = ["Employee", "Vacation start date", "Vacation end date"]
 
@@ -70,10 +71,6 @@ def _parse_date(raw: str) -> date | None:
         return None
 
     return parsed
-
-
-def _periods_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -> bool:
-    return a_start <= b_end and b_start <= a_end
 
 
 def _validate_rows(df: pd.DataFrame) -> tuple[list[ParsedRow], list[RowError]]:
@@ -166,7 +163,7 @@ def _validate_overlaps(
             (
                 period
                 for period in existing_periods[employee_id] + accepted_periods[employee_id]
-                if _periods_overlap(r.start_date, r.end_date, period[0], period[1])
+                if periods_overlap(r.start_date, r.end_date, period[0], period[1])
             ),
             None,
         )
